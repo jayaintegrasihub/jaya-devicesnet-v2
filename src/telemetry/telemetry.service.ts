@@ -120,45 +120,68 @@ export class TelemetryService {
       endTime: string;
       aggregate: string;
     } = query;
-    const filterFields = fields
-      .split(',')
-      .map((x) => `r["_field"] == "${x}"`)
-      .join(' or ');
+    const fieldsArray = fields.split(',');
+    
+    const fieldsCondition = fieldsArray.map(field => 
+      `field = '${field}'`
+    ).join(' OR ');
 
     const filterTags: Array<string> = [];
     for (const key in tags) {
       if (Object.prototype.hasOwnProperty.call(tags, key)) {
-        filterTags.push(`r["${key}"] == "${tags[key]}"`);
+        filterTags.push(`tags->>'${key}' = '${tags[key]}'`);
       }
     }
 
-    const filterTagsFlux =
-      filterTags.length !== 0
-        ? `|> filter(fn: (r) => ${filterTags.join(' or ')})`
+    const filterTagsSQL = 
+      filterTags.length !== 0 
+        ? `AND (${filterTags.join(' OR ')})`
         : '';
 
-    const aggreateFlux =
-      aggregate !== undefined
-        ? `|> aggregateWindow(every: ${aggregate}, fn: median)`
-        : '';
+    let timeSelect = 'time';
+    let groupBy = '';
+    let aggregateFunc = '';
+    
+    if (aggregate !== undefined) {
+      timeSelect = `time_bucket('${aggregate}', time) AS time`;
+      aggregateFunc = 'PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY value)';
+      groupBy = `GROUP BY time_bucket('${aggregate}', time), device_id, field`;
+    } else {
+      aggregateFunc = 'value';
+    }
 
-    const fluxQuery = `
-    from(bucket: "${tenant?.name}")
-    |> range(start: ${startTime}, stop: ${endTime})
-    |> filter(fn: (r) => r["_measurement"] == "${type}")
-    ${filterTagsFlux}
-    |> filter(fn: (r) => r["device"] == "${serialNumber}")
-    |> filter(fn: (r) => ${filterFields})
-    ${aggreateFlux}
-    |> drop(columns: ["_start", "_stop"])`;
+    const sqlQuery = `
+      SELECT 
+        ${timeSelect},
+        device_id,
+        field,
+        ${aggregateFunc} AS value
+      FROM device_telemetry
+      WHERE tenant_id = '${tenant?.id}'
+        AND measurement = '${type}'
+        AND device_id = '${serialNumber}'
+        AND (${fieldsCondition})
+        AND time >= '${startTime}'::timestamptz
+        AND time <= '${endTime}'::timestamptz
+        ${filterTagsSQL}
+      ${groupBy}
+      ORDER BY time ASC`;
 
-    const resultQuery = await this.queryApi.collectRows(fluxQuery);
+    const resultQuery = await this.timescaleProvider.query(sqlQuery);
+    
     const obj = {};
-    fields.split(',').forEach((data) => {
-      const dataInflux = resultQuery.filter(
-        (x: any) => x._field === data,
-      ) as any;
-      obj[data] = dataInflux;
+    fieldsArray.forEach(field => {
+      const dataTimescale = resultQuery.filter(
+        (x: any) => x.field === field
+      ).map(row => ({
+        _time: row.time,
+        _field: row.field,
+        _value: row.value,
+        device: row.device_id,
+        // TODO: more columns as needed
+      }));
+      
+      obj[field] = dataTimescale;
     });
     return obj;
   }
