@@ -1,4 +1,5 @@
 import {
+  Body,
   ClassSerializerInterceptor,
   Controller,
   Post,
@@ -12,7 +13,7 @@ export class TimescaleController {
   constructor(private timescaleService: TimescaleService) {}
 
   @Post('migrate')
-  async migrateTenant() {
+  async migrate() {
     await this.timescaleService.createSchema();
     return { message: 'Migration completed' };
   }
@@ -20,6 +21,18 @@ export class TimescaleController {
   @Post('seed')
   async seedData() {
     await this.timescaleService.seedData();
+    return { message: 'Data seeded' };
+  }
+  
+  @Post('migrate_tenant')
+  async migrateTenant(@Body('tenant') tenant: string) {
+    await this.timescaleService.createTenantSchema(tenant);
+    return { message: 'Migration completed' };
+  }
+
+  @Post('seed_tenant')
+  async seedDataTenant(@Body('tenant') tenant: string) {
+    await this.timescaleService.seedTenantData(tenant);
     return { message: 'Data seeded' };
   }
 }

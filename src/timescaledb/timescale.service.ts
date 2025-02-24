@@ -89,4 +89,125 @@ export class TimescaleService {
       throw error;
     }
   }
+
+  async createTenantSchema(tenantName: string): Promise<void> {
+    try {
+      await this.timescaleProvider.query(`
+        CREATE EXTENSION IF NOT EXISTS timescaledb;
+      `);
+
+      await this.timescaleProvider.query(`
+        CREATE TABLE IF NOT EXISTS device_telemetry_${tenantName} (
+          time TIMESTAMPTZ NOT NULL,
+          device VARCHAR(30) NOT NULL,
+          floor INTEGER NOT NULL,
+          oxygen_input DOUBLE PRECISION,
+          oxygen_output DOUBLE PRECISION,
+          pressure DOUBLE PRECISION,
+          flow_rate DOUBLE PRECISION,
+          temperature DOUBLE PRECISION,
+          humidity DOUBLE PRECISION,
+          room_number VARCHAR(10),
+          department VARCHAR(50),
+          notes TEXT
+        );
+      `);
+  
+      await this.timescaleProvider.query(`
+        CREATE TABLE IF NOT EXISTS device_health_${tenantName} (
+          time TIMESTAMPTZ NOT NULL,
+          device VARCHAR(30) NOT NULL,
+          battery_level DOUBLE PRECISION,
+          battery_voltage DOUBLE PRECISION,
+          device_status VARCHAR(20),
+          connection_strength INTEGER,
+          last_maintenance TIMESTAMPTZ,
+          firmware_version VARCHAR(20),
+          error_code VARCHAR(20),
+          uptime INTEGER,
+          temperature DOUBLE PRECISION,
+          memory_usage DOUBLE PRECISION
+        );
+      `);
+
+      await this.timescaleProvider.query(`
+        SELECT create_hypertable('device_telemetry_${tenantName}', 'time', if_not_exists => TRUE);
+        SELECT create_hypertable('device_health_${tenantName}', 'time', if_not_exists => TRUE);
+      `);
+
+      await this.timescaleProvider.query(`
+        CREATE INDEX IF NOT EXISTS idx_device_telemetry_${tenantName}_device 
+        ON device_telemetry_${tenantName}(device, time DESC);
+        
+        CREATE INDEX IF NOT EXISTS idx_device_telemetry_${tenantName}_floor 
+        ON device_telemetry_${tenantName}(floor, time DESC);
+        
+        CREATE INDEX IF NOT EXISTS idx_device_health_${tenantName}_device 
+        ON device_health_${tenantName}(device, time DESC);
+        
+        CREATE INDEX IF NOT EXISTS idx_device_health_${tenantName}_status 
+        ON device_health_${tenantName}(device_status, time DESC);
+      `);
+      
+      this.logger.log(`TimescaleDB schema created successfully for tenant: ${tenantName}`);
+    } catch (error) {
+      this.logger.error(`Failed to create TimescaleDB schema for tenant ${tenantName}:`, error);
+      throw error;
+    }
+  }
+  
+  async seedTenantData(tenantName: string): Promise<void> {
+    try {
+      await this.timescaleProvider.query(`
+        -- Seed device telemetry data
+        INSERT INTO device_telemetry_${tenantName} (
+          time,
+          device,
+          floor,
+          oxygen_input,
+          oxygen_output,
+          pressure,
+          flow_rate,
+          temperature,
+          humidity,
+          room_number,
+          department,
+          notes
+        )
+        VALUES 
+          (NOW(), 'DEV001', 1, 95.5, 92.3, 1013.2, 15.7, 23.5, 45.0, 'ICU-101', 'ICU', 'Normal operation'),
+          (NOW(), 'DEV002', 2, 94.8, 91.5, 1012.8, 14.3, 24.1, 46.2, 'OR-201', 'Surgery', 'Post-maintenance check'),
+          ('2025-01-29T09:01:42Z', 'DEV003', 3, 96.2, 93.1, 1013.5, 16.2, 22.8, 44.5, 'ER-301', 'Emergency', 'High traffic period'),
+          ('2025-01-24T02:02:31Z', 'DEV004', 1, 95.1, 91.8, 1012.5, 15.1, 23.2, 45.5, 'ICU-102', 'ICU', 'Routine monitoring'),
+          ('2025-01-21T04:53:26Z', 'DEV005', 2, 94.5, 90.8, 1013.0, 14.8, 24.5, 47.0, 'OR-202', 'Surgery', 'System calibration');
+  
+        -- Seed device health data
+        INSERT INTO device_health_${tenantName} (
+          time,
+          device,
+          battery_level,
+          battery_voltage,
+          device_status,
+          connection_strength,
+          last_maintenance,
+          firmware_version,
+          error_code,
+          uptime,
+          temperature,
+          memory_usage
+        )
+        VALUES 
+          (NOW(), 'DEV001', 85.5, 3.7, 'ONLINE', 95, '2025-01-01T00:00:00Z', 'v2.1.0', NULL, 123456, 35.2, 45.6),
+          (NOW(), 'DEV002', 72.3, 3.6, 'ONLINE', 87, '2025-01-15T00:00:00Z', 'v2.1.0', NULL, 98765, 36.1, 52.3),
+          ('2025-01-29T09:01:42Z', 'DEV003', 15.2, 3.2, 'LOW_BATTERY', 91, '2025-01-10T00:00:00Z', 'v2.0.9', 'BAT_LOW', 45678, 34.8, 48.9),
+          ('2025-01-24T02:02:31Z', 'DEV004', 0.0, 0.0, 'OFFLINE', 0, '2024-12-28T00:00:00Z', 'v2.1.0', 'CONN_LOST', 0, 0.0, 0.0),
+          ('2025-01-21T04:53:26Z', 'DEV005', 91.2, 3.8, 'ONLINE', 98, '2025-01-20T00:00:00Z', 'v2.1.1', NULL, 234567, 35.5, 43.2);
+      `);
+      
+      this.logger.log(`Seed data inserted successfully for tenant: ${tenantName}`);
+    } catch (error) {
+      this.logger.error(`Failed to seed data for tenant ${tenantName}:`, error);
+      throw error;
+    }
+  }
 }
