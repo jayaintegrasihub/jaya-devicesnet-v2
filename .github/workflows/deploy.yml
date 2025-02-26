@@ -3,7 +3,7 @@ name: Build and Push
 on:
   push:
     branches:
-      - 'master'
+      - 'main'
     tags:
       - 'v*'
 
@@ -20,7 +20,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{secrets.DOCKERHUB_TOKEN}}/jaya-devicenet-v2
+            ${{secrets.DOCKERHUB_USERNAME}}/jaya-devicenet-v2
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
