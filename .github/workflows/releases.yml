@@ -1,4 +1,4 @@
-name: Releases
+name: Realeses Test and Push
 
 on:
   push:
@@ -10,16 +10,19 @@ on:
 jobs:
   docker:
     runs-on: ubuntu-latest
-    steps:
+    strategy:
+      matrix:
+        node-version: [18, 22]
+    steps:  
       -
         name: Checkout
         uses: actions/checkout@v4
 
       -
-        name: Setup Node
+        name: Use Node.js ${{matrix.node-version}}
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{matrix.node-version}}
 
       - 
         name: Install Dependencies
