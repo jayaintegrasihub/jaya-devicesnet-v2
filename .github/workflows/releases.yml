@@ -21,9 +21,9 @@ jobs:
         with:
           node-version: 22
 
-      - 
-        name: Install Dependencies
-        run: npm ci
+      # - 
+      #   name: Install Dependencies
+      #   run: npm ci
         
       # - 
       #   name: Run Tests
@@ -38,7 +38,6 @@ jobs:
             ${{secrets.DOCKERHUB_USERNAME}}/jaya-devicenet-v2
           tags: |
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=semver, pattern=latest
       -
         name: Login to DockerHub
