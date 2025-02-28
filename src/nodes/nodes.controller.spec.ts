@@ -32,6 +32,23 @@ describe('nodesController', () => {
     updatedAt: new Date('2024-06-24T05:30:36.069Z'),
   };
 
+  const nodesAll = {
+    id: 'c9599c90-01c4-4ef4-8060-1acdff175512',
+    serialNumber: 'AI3494545BA57C',
+    alias: 'Supply Demin 10 Gedung Depan',
+    description: 'LoRa Node',
+    type: 'Water Monitoring',
+    group: {
+      Floor: '1',
+      Building: 'Atas',
+    },
+    tenant: {
+      id: 'c665711b-5f98-414f-9606-1f044e8a5f45',
+      name: 'UBS',
+    },
+    tenantId: 'tenant-id'
+  };
+
   const mockNodesEntity = [nodes].map(
     ({ createdAt: _x, updatedAt: _y, ...nodes }) => new NodesEntity(nodes),
   );
@@ -39,7 +56,7 @@ describe('nodesController', () => {
   const mockNodeEntity = new NodesEntity(nodes);
 
   const NodesMock = {
-    findAll: jest.fn().mockResolvedValueOnce([nodes]),
+    findAll: jest.fn().mockResolvedValueOnce([nodesAll]),
     findOne: jest.fn().mockResolvedValueOnce(nodes),
     create: jest.fn().mockResolvedValueOnce(nodes),
     update: jest.fn().mockResolvedValueOnce(nodes),

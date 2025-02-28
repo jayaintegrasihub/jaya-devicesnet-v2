@@ -115,7 +115,7 @@ describe('GatewaysController', () => {
 
       const result = await gatewaysController.findOne(id);
 
-      expect(gatewaysService.findOne).toHaveBeenCalledWith({ id });
+      expect(gatewaysService.findOne).toHaveBeenCalledWith(id);
       expect(result).toEqual(expectedResponse);
     });
   });

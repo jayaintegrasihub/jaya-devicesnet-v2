@@ -9,6 +9,8 @@ import { NodesModule } from 'src/nodes/nodes.module';
 import { ApiKeysModule } from 'src/api-keys/api-keys.module';
 import { TenantsModule } from 'src/tenants/tenants.module';
 import { GatewaysModule } from 'src/gateways/gateways.module';
+import { AccessTokenGuard } from 'src/auth/guards/access-token.guard';
+import { ApiKeysGuard } from 'src/api-keys/guards/api-keys.guard';
 
 describe('telemetryController', () => {
   let telemetryService: TelemetryService;
@@ -108,6 +110,8 @@ describe('telemetryController', () => {
           provide: TelemetryService,
           useValue: ProvisionMock,
         },
+        AccessTokenGuard,
+        ApiKeysGuard
       ],
     }).compile();
 
@@ -232,6 +236,7 @@ describe('telemetryController', () => {
       const tenant = 'tenant-test';
       const query = {
         type: 'rantai',
+        field: 'value-test',
         startTime: '2024-07-09T03:00:00.000Z',
         endTime: '2024-07-09T03:15:00.000Z',
       };
@@ -245,6 +250,7 @@ describe('telemetryController', () => {
         query.endTime,
         tenant,
         query.type,
+        query.field
       );
       expect(result).toEqual(expectedResponse);
     });
